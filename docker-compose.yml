@@ -1,0 +1,40 @@
+version: '2.1'
+services:
+
+######################################################
+# DATABASE SERVICE
+######################################################
+  postgres:
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow_db
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "airflow_db", "-U", "airflow" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+
+######################################################
+# AIRFLOW
+######################################################
+
+  airflow:
+    build: ./docker/airflow
+    restart: always
+    container_name: airflow
+    env_file:
+      - .env
+    volumes:
+      - ./mnt/airflow/dags:/opt/airflow/dags
+    ports:
+      - 8080:8080
+    healthcheck:
+      test: [ "CMD", "nc", "-z", "airflow", "8080" ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
