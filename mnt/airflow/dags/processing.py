@@ -10,11 +10,13 @@ import json
 import gzip
 import requests
 import psycopg2
+import logging
 from pandas import json_normalize
 from datetime import datetime
 from json import loads
 from gzip import decompress
 from requests import get
+from psycopg2 import extras
 
 def _store_pronostico(ti):
 
@@ -27,21 +29,12 @@ def _store_pronostico(ti):
     cursor = conn.cursor()
 
     pronostico = ti.xcom_pull(task_ids="extract_pronostico")
-    pronostico_json = pronostico[0]
-    for pronostico_fact in pronostico_json:
-        data = json.dumps(pronostico_fact)
-        insert_query = "insert into pronosticoPorMunicipios (data) values (%s) returning data"
-        cursor.execute(insert_query, (data,))
-    conn.commit()
+    timest = datetime.now()
+    for pronostico_fact in pronostico:
+        insert_query = "insert into pronosticoxmunicipios VALUES(%(ides)s, %(idmun)s, %(nes)s, %(nmun)s, %(dloc)s, %(ndia)s, %(tmax)s, %(tmin)s, %(desciel)s, %(probprec)s, %(prec)s, %(velvien)s, %(dirvienc)s, %(dirvieng)s, %(cc)s, %(lat)s, %(lon)s, %(dh)s, %(raf)s, '" + timest.strftime("%m/%d/%Y, %H:%M:%S") + "')"
+        cursor.execute(insert_query, pronostico_fact)
+        conn.commit()
     conn.close()
-    '''processed_pronostico = json_normalize({
-        'firstname': pronostico['name'],
-        'lastname': pronostico['name'],
-        'country': pronostico['location'],
-        'pronosticoname': pronostico['login'],
-        'password': user['login'],
-        'email': user['email'] })
-    processed_pronostico.to_csv('/tmp/processed_pronostico.csv', index=None, header=False)'''
 
 def extract_json():
     return loads(decompress(get("https://smn.conagua.gob.mx/webservices/?method=1", verify=False).content))
@@ -53,25 +46,27 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
         task_id='create_table',
         postgres_conn_id='postgres',
         sql='''
-            CREATE TABLE IF NOT EXISTS pronosticoPorMunicipios (
+            CREATE TABLE IF NOT EXISTS pronosticoxmunicipios (
                 id_es INT NOT NULL,
                 id_mun INT NOT NULL,
                 nom_es TEXT NOT NULL,
                 nom_mun TEXT NOT NULL,
                 dia_loc TEXT NOT NULL,
                 num_dia INT NOT NULL,
-                temp_max INT NOT NULL,
-                temp_min INT NOT NULL,
+                temp_max FLOAT NOT NULL,
+                temp_min FLOAT NOT NULL,
                 desc_ciel TEXT NOT NULL,
-                prob_prec INT NOT NULL,
-                prec INT NOT NULL,
-                vel_vien INT NOT NULL,
-                dir_vien_c INT NOT NULL,
-                dir_vien_g INT NOT NULL,
-                cc INT NOT NULL,
-                lat INT NOT NULL,
-                lon INT NOT NULL,
-                dh INT NOT NULL
+                prob_prec FLOAT NOT NULL,
+                prec FLOAT NOT NULL,
+                vel_vien FLOAT NOT NULL,
+                dir_vien_c TEXT NOT NULL,
+                dir_vien_g FLOAT NOT NULL,
+                cc FLOAT NOT NULL,
+                lat FLOAT NOT NULL,
+                lon FLOAT NOT NULL,
+                dh INT NOT NULL,
+                raf FLOAT NOT NULL,
+                tms TEXT NOT NULL
             );
         '''
     )
@@ -87,4 +82,4 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
     )
  
  
-    create_table >> extract_pronostico >> store_pronostico
+    create_table >> extract_pronostico >> store_pronostico 

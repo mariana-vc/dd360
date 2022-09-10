@@ -9,3 +9,8 @@ docker volume prune -f
 docker network prune -f
 rm -rf ./mnt/postgres/*
 docker rmi -f $(docker images -a -q)
+
+
+
+psql -U airflow -d airflow_db
+
