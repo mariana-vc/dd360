@@ -7,11 +7,16 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 import json
+import gzip
+import requests
 import psycopg2
 from pandas import json_normalize
 from datetime import datetime
- 
-def _process_pronostico(ti):
+from json import loads
+from gzip import decompress
+from requests import get
+
+def _store_pronostico(ti):
 
     conn = psycopg2.connect(user="airflow",
                                 password="airflow",
@@ -37,15 +42,11 @@ def _process_pronostico(ti):
         'password': user['login'],
         'email': user['email'] })
     processed_pronostico.to_csv('/tmp/processed_pronostico.csv', index=None, header=False)'''
+
+def extract_json():
+    return loads(decompress(get("https://smn.conagua.gob.mx/webservices/?method=1", verify=False).content))
  
-def _store_pronostico():
-    hook = PostgresHook(postgres_conn_id='postgres')
-    hook.copy_expert(
-        sql="COPY users FROM stdin WITH DELIMITER as ','",
-        filename='/tmp/processed_user.csv'
-    )
- 
-with DAG('user_processing', start_date=datetime(2022, 9, 9), 
+with DAG('pronostico_processing', start_date=datetime(2022, 9, 9), 
         schedule_interval='@hourly', catchup=False) as dag:
  
     create_table = PostgresOperator(
@@ -75,34 +76,15 @@ with DAG('user_processing', start_date=datetime(2022, 9, 9),
         '''
     )
  
-    is_api_available = HttpSensor(
-        task_id='is_api_available',
-        http_conn_id='pronostico_api',
-        endpoint='/webservices',
-        request_params={"method":"1"},
-        extra_options = {'verify':False}
-    )
- 
-    extract_pronostico = SimpleHttpOperator(
+    extract_pronostico = PythonOperator(
         task_id='extract_pronostico',
-        http_conn_id='pronostico_api',
-        endpoint='/webservices/?method=1',
-        method='GET',
-        headers={"Content-Type": "application/json"},
-        #response_filter=lambda response: response.json()[''],
-        response_filter=lambda response: json.loads((response.text).decode("utf-8")),
-        log_response=True,
-        extra_options = {'verify':False} 
+        python_callable=extract_json
     )
  
-    process_pronostico = PythonOperator(
-        task_id='process_pronostico',
-        python_callable=_process_pronostico
+    store_pronostico = PythonOperator(
+        task_id='store_pronostico',
+        python_callable=_store_pronostico
     )
  
-    #store_pronostico = PythonOperator(
-    #    task_id='store_pronostico',
-    #    python_callable=_store_pronostico
-    #)
  
-    create_table >> is_api_available >> extract_pronostico >> process_pronostico 
+    create_table >> extract_pronostico >> store_pronostico
