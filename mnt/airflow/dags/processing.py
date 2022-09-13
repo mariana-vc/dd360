@@ -166,25 +166,13 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
         python_callable=csvToPostgres,
     )
 
-    '''create_data_pronostico_mun_table = PostgresOperator(
-        task_id='create_data_pronostico_mun_table',
-        postgres_conn_id='postgres',
-        sql="CREATE TABLE IF NOT EXISTS data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + ''' (
-                id_es INT NOT NULL,
-                id_mun INT NOT NULL,
-                avg_temp FLOAT NOT NULL,
-                avg_prec FLOAT NOT NULL,
-                value_ TEXT NOT NULL
-            )"
-    ) '''
-
     merge_data_pronostico_mun = PostgresOperator(
         task_id='merge_data_pronostico_mun',
         postgres_conn_id='postgres',
         sql=['''
-            SELECT pm.id_es, pm.id_mun, pm.avg_temp, pm.avg_prec, dm.value_ INTO data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + '''
+            SELECT ides, idmun, avg_temp, avg_prec, value_ INTO data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + '''
             FROM (
-                SELECT * FROM pronosticoxmunicipios_''' + timest.strftime("%m_%d_%Y_%H") +  ''' pm
+                SELECT pm.id_es as ides, pm.id_mun as idmun, avg_temp, avg_prec, value_ FROM pronostico_avg_''' + timest.strftime("%m_%d_%Y_%H") +  ''' pm
                 JOIN data_municipios_20220503 dm ON dm.id_es = pm.id_es AND dm.id_mun = pm.id_mun
             ) sub
             ''',
@@ -193,5 +181,4 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
             ]
     )
 
-    #create_table >> get_average_pronostico >> select_into_query >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> create_data_pronostico_mun_table >> merge_data_pronostico_mun
     create_table >> extract_pronostico >> store_pronostico >> get_average_pronostico >> execute_average_pronostico >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> merge_data_pronostico_mun
