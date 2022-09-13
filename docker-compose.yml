@@ -11,6 +11,8 @@ services:
       - POSTGRES_USER=airflow
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow_db
+    volumes:
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
       - '5432:5432'
     healthcheck:
@@ -27,10 +29,9 @@ services:
     build: ./docker/airflow
     restart: always
     container_name: airflow
-    env_file:
-      - .env
     volumes:
       - ./mnt/airflow/dags:/opt/airflow/dags
+      - ./mnt/airflow/data_municipios:/opt/airflow/data_municipios
     ports:
       - 8080:8080
     healthcheck:
