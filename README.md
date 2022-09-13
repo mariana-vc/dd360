@@ -15,7 +15,7 @@ local development. The functions of each shell can be described next:
 
 #### Airflow Connections
 
-Sign in with:
+##### Sign in Airflow with:
 - User: airflow
 - Password: airflow
 
@@ -41,7 +41,8 @@ wait for the process to complete.
 - Airflow distribuido.
 - Implementación de Operador que regrese el folder más reciente de data_municipios.
 - Mejor manejo de alertas (mandar correos cuando haya algún error en el pipeline).
-- Almacenar logs en algun repositorio.
+- Almacenar logs en algun repositorio (actualmente solo se manejan a nivel de código). 
+- Mejorar el manejo de excepciones.
 
 ##### Tu solución le ha gustado al equipo y deciden incorporar otros procesos, habrá nuevas personas colaborando contigo, ¿Qué aspectos o herramientas considerarías para escalar, organizar y automatizar tu solución?
 
@@ -51,4 +52,20 @@ wait for the process to complete.
 - Creación de ambientes de desarrollo
 - Ambiente distribuido
 
+### Airflow DAG 
+1. Cada hora debes consumir el último registro devuelto por el servicio de pronóstico por municipio y por hora.
+- create_table
+- extract_pronostico
+- store_pronostico
+2. A partir de los datos extraídos en el punto 1, generar una tabla a nivel municipio en la que cada registro contenga el promedio de temperatura y precipitación de las últimas dos horas.
+- get_average_pronostico
+- execute_average_pronostico
+3. Hay una carpeta “data_municipios” que contiene datos a nivel municipio organizados por fecha, cada vez que tu proceso se ejecute debe generar una tabla en la cual se crucen los datos más recientes de esta carpeta con los datos generados en el punto 2.
+- get_data_municipios
+- create_data_municipios_table
+- process_data_municipios 
+- merge_data_pronostico_mun
+4. Versiona todas tus tablas de acuerdo a la fecha y hora en la que se ejecutó el proceso, en el caso del entregable del punto 3, además, genera una versión “current” que siempre contenga una copia de los datos más recientes.
+
+##### Observaciones adicionales
 * El API tiene ciertos periodos de intermitencia, en donde no es posible hacer la llamada GET del archivo .gz

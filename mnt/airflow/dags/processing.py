@@ -51,6 +51,7 @@ def _store_pronostico(ti):
     conn.close()
 
 def extract_json():
+    logging.info("Decompressing .gz file")
     return loads(decompress(get("https://smn.conagua.gob.mx/webservices/?method=3", verify=False).content))
 
 def _get_average_pronostico():
@@ -134,8 +135,8 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
         python_callable=_get_average_pronostico
     )
 
-    select_into_query = PostgresOperator(
-        task_id='select_into_query',
+    execute_average_pronostico = PostgresOperator(
+        task_id='execute_average_pronostico',
         postgres_conn_id='postgres',
         sql='''
             {{ ti.xcom_pull(task_ids='get_average_pronostico') }}
@@ -193,4 +194,4 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
     )
 
     #create_table >> get_average_pronostico >> select_into_query >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> create_data_pronostico_mun_table >> merge_data_pronostico_mun
-    create_table >> extract_pronostico >> store_pronostico >> get_average_pronostico >> select_into_query >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> merge_data_pronostico_mun
+    create_table >> extract_pronostico >> store_pronostico >> get_average_pronostico >> execute_average_pronostico >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> merge_data_pronostico_mun
