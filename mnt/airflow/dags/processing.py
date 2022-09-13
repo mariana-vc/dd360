@@ -13,7 +13,6 @@ import gzip
 import requests
 import psycopg2
 import logging
-import pandas as pd
 from datetime import datetime, timedelta
 from json import loads
 from gzip import decompress
@@ -54,42 +53,12 @@ def _store_pronostico(ti):
 def extract_json():
     return loads(decompress(get("https://smn.conagua.gob.mx/webservices/?method=3", verify=False).content))
 
-def postgresql_to_dataframe(conn, select_query):
-    """
-    Tranform a SELECT query into a pandas dataframe
-    """
-    cursor = conn.cursor()
-    try:
-        cursor.execute(select_query)
-    except (Exception, psycopg2.DatabaseError) as error:
-        logging.info("Error: %s" % error)
-        cursor.close()
-        return 1
-    
-    # Naturally we get a list of tupples
-    tupples = cursor.fetchall()
-    cursor.close()
-    
-    # We just need to turn it into a pandas dataframe
-    df = pd.DataFrame(tupples) #, columns=col_names)
-    return df
-
-def execute_select_query(cursor, select_query):
-    #cursor = conn.cursor()
-    try:
-        cursor.execute(select_query)
-    except (Exception, psycopg2.DatabaseError) as error:
-        logging.info("Error: %s" % error)
-        cursor.close()
-        return 1
-    #conn.close()
-
 def _get_average_pronostico():
     conn = connect(param_dic)
     cursor = conn.cursor()
     select_query = ""
     if bool(cursor.execute("SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='"+ (timest - timedelta(hours=1)).strftime("%m_%d_%Y_%H") +"')")):
-        logging.info('prev-hr table exists. Moving On.')
+        logging.info('Previous hr table exists. Moving On.')
         select_query = '''SELECT id_es, id_mun, avg(temp) as avg_temp , avg(prec) as avg_prec INTO pronostico_avg_''' + timest.strftime("%m_%d_%Y_%H") + ''' FROM ( 
                 SELECT id_es, id_mun, temp, prec 
                 FROM pronosticoxmunicipios_09_12_2022_18 
@@ -98,23 +67,11 @@ def _get_average_pronostico():
                 FROM pronosticoxmunicipios_09_12_2022_19 ) sub
             GROUP BY id_es, id_mun;'''
     else:
-        logging.info('prev-hr does not exist. Creating the Table now.')
+        logging.info('Previous hr does not exist. Creating the Table now.')
         select_query = "SELECT id_es, id_mun, avg(temp) as avg_temp , avg(prec) as avg_prec INTO pronostico_avg_" + timest.strftime("%m_%d_%Y_%H") + " FROM pronosticoxmunicipios_" + timest.strftime("%m_%d_%Y_%H") + " GROUP BY id_es, id_mun;"
     conn.close()
     logging.info(select_query)
     return select_query
-    
-def _process_data_municipios(ti):
-    conn = connect(param_dic)
-    cursor = conn.cursor()
-
-    data_municipios_path = ti.xcom_pull(task_ids="get_data_municipios")
-    data_municipios_path_date = data_municipios_path.split("/")[-1]
-    copy_query = "COPY data_municipios_20220503(id_es, id_mun, value_) FROM './opt/postgres/data_municipios/data.csv' DELIMITER ',' CSV HEADER;"
-    logging.info(copy_query)
-    logging.info(data_municipios_path)    
-    cursor.execute(copy_query)
-    conn.close()
 
 def csvToPostgres():
     #Open Postgres Connection
@@ -185,6 +142,7 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
         '''
     )
 
+    # This operator was created to retrieve the most recent folder from data_municipios
     get_last_data_municipios = DummyOperator(
         task_id='get_data_municipios',
         #bash_command='find ../../opt/airflow/data_municipios ! -path . -type d | sort -nr | head -1',
@@ -192,7 +150,6 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
 
     create_data_municipios_table = PostgresOperator(
         task_id='create_data_municipios_table',
-        #{{ ti.xcom_pull(task_ids='get_data_municipios').split("/")[-1] }}
         postgres_conn_id='postgres',
         sql='''
             CREATE TABLE IF NOT EXISTS data_municipios_20220503 ( 
@@ -223,13 +180,16 @@ with DAG('pronostico_processing', start_date=datetime(2022, 9, 9),
     merge_data_pronostico_mun = PostgresOperator(
         task_id='merge_data_pronostico_mun',
         postgres_conn_id='postgres',
-        sql='''
-            SELECT id_es, id_mun, avg_temp, avg_prec, value_ INTO data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + '''
+        sql=['''
+            SELECT pm.id_es, pm.id_mun, pm.avg_temp, pm.avg_prec, dm.value_ INTO data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + '''
             FROM (
                 SELECT * FROM pronosticoxmunicipios_''' + timest.strftime("%m_%d_%Y_%H") +  ''' pm
                 JOIN data_municipios_20220503 dm ON dm.id_es = pm.id_es AND dm.id_mun = pm.id_mun
             ) sub
-            '''
+            ''',
+            ''' TRUNCATE data_pronostico_mun_current; ''',
+            ''' INSERT INTO data_pronostico_mun_current SELECT * FROM data_pronostico_mun_''' + timest.strftime("%m_%d_%Y_%H") + ''';'''
+            ]
     )
 
     #create_table >> get_average_pronostico >> select_into_query >> get_last_data_municipios >> create_data_municipios_table >> process_data_municipios >> create_data_pronostico_mun_table >> merge_data_pronostico_mun
