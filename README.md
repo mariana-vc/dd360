@@ -39,6 +39,7 @@ wait for the process to complete.
 
 - Uso de alguna nube GCP o AWS.
 - Documentar código.
+- Mejorar el manejo de contraseñas.
 - Airflow distribuido.
 - Implementación de Operador que regrese el folder más reciente de data_municipios.
 - Mejor manejo de alertas (mandar correos cuando haya algún error en el pipeline).
