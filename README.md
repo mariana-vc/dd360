@@ -57,15 +57,15 @@ wait for the process to complete.
 
 ### Airflow DAG 
 1. Cada hora debes consumir el último registro devuelto por el servicio de pronóstico por municipio y por hora.
-  - create_table: se crea la tabla pronosticoxmunicipios en postgresql
-  - extract_pronostico: se hace la llamada GET al api, el cual devuelve un archivo .gz que se descomprime.
-  - store_pronostico: el json obtenido se inserta en la tabla pronosticoxmunicipios
+      - create_table: se crea la tabla pronosticoxmunicipios en postgresql
+      - extract_pronostico: se hace la llamada GET al api, el cual devuelve un archivo .gz que se descomprime.
+      - store_pronostico: el json obtenido se inserta en la tabla pronosticoxmunicipios
 2. A partir de los datos extraídos en el punto 1, generar una tabla a nivel municipio en la que cada registro contenga el promedio de temperatura y precipitación de las últimas dos horas.
-  - get_average_pronostico: se obtiene la query correspondiente que calcula el promedio de la temperatura y precipación , de las dos tablas mas recientes.
-  - execute_average_pronostico: se ejecuta la query del paso anterior.
+      - get_average_pronostico: se obtiene la query correspondiente que calcula el promedio de la temperatura y precipación , de las dos tablas mas recientes.
+      - execute_average_pronostico: se ejecuta la query del paso anterior.
 3. Hay una carpeta “data_municipios” que contiene datos a nivel municipio organizados por fecha, cada vez que tu proceso se ejecute debe generar una tabla en la cual se crucen los datos más recientes de esta carpeta con los datos generados en el punto 2.
-  - get_data_municipios (Dummy): el objetivo de este paso es obtener el path de la carpeta con los datos más recientes de data_municipios.
-  - create_data_municipios_table: se crea la tabla data_municipios en postgres
-  - process_data_municipios: a partir del csv de la carpeta data_municipios se llena la tabla creada en el paso anterior. 
-  - merge_data_pronostico_mun: se hace el cruce de las tablas y se actualiza la tabla "current"
+      - get_data_municipios (Dummy): el objetivo de este paso es obtener el path de la carpeta con los datos más recientes de data_municipios.
+      - create_data_municipios_table: se crea la tabla data_municipios en postgres
+      - process_data_municipios: a partir del csv de la carpeta data_municipios se llena la tabla creada en el paso anterior. 
+      - merge_data_pronostico_mun: se hace el cruce de las tablas y se actualiza la tabla "current"
 4. Versiona todas tus tablas de acuerdo a la fecha y hora en la que se ejecutó el proceso, en el caso del entregable del punto 3, además, genera una versión “current” que siempre contenga una copia de los datos más recientes.
