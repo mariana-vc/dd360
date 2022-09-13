@@ -12,7 +12,7 @@ services:
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow_db
     volumes:
-      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./init/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - '5432:5432'
     healthcheck:

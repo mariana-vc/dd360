@@ -38,12 +38,14 @@ wait for the process to complete.
 ##### ¿Qué mejoras propondrías a tu solución para siguientes versiones?
 
 - Uso de alguna nube GCP o AWS.
+- Documentar código.
 - Airflow distribuido.
 - Implementación de Operador que regrese el folder más reciente de data_municipios.
 - Mejor manejo de alertas (mandar correos cuando haya algún error en el pipeline).
 - Almacenar logs en algun repositorio (actualmente solo se manejan a nivel de código). 
 - Mejorar el manejo de excepciones.
 - Definir zona horaria para ejecución del proceso.
+- El API tiene ciertos periodos de intermitencia, o algunas ejecuciones donde no era posible descomprimir el archivo. Sería conveniente revisar cómo manejar este error.
 
 ##### Tu solución le ha gustado al equipo y deciden incorporar otros procesos, habrá nuevas personas colaborando contigo, ¿Qué aspectos o herramientas considerarías para escalar, organizar y automatizar tu solución?
 
@@ -67,6 +69,3 @@ wait for the process to complete.
   - process_data_municipios: a partir del csv de la carpeta data_municipios se llena la tabla creada en el paso anterior. 
   - merge_data_pronostico_mun: se hace el cruce de las tablas y se actualiza la tabla "current"
 4. Versiona todas tus tablas de acuerdo a la fecha y hora en la que se ejecutó el proceso, en el caso del entregable del punto 3, además, genera una versión “current” que siempre contenga una copia de los datos más recientes.
-
-##### Observaciones adicionales
-* El API tiene ciertos periodos de intermitencia, en donde no es posible hacer la llamada GET del archivo .gz
